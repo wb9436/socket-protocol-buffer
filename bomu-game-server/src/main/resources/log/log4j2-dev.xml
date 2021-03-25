@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="info">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <ThresholdFilter level="info" onMatch="ACCEPT" onMismatch="DENY"/>
+            <!--https://www.cnblogs.com/appleat/p/9842140.html-->
+            <PatternLayout pattern="%d{yyyy-MM-dd HH:mm:ss} [%t] %p %l - %m%n"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Logger name="com.bomu.game" level="info" additivity="false">
+            <AppenderRef ref="Console" />
+        </Logger>
+        <Logger name="com.bomu.socket" level="info" additivity="false">
+            <AppenderRef ref="Console" />
+        </Logger>
+        <Root level="warn">
+            <AppenderRef ref="Console" />
+        </Root>
+    </Loggers>
+
+</Configuration>

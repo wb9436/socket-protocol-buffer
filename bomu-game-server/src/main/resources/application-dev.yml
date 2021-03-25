@@ -1,0 +1,15 @@
+#自定义配置
+bomu:
+  websocket:
+    port: 18113
+    websocketPath: /protocol
+    backlog: 128
+    keeplive: true
+    readIdleTimeSeconds: 5
+    writeIdleTimeSeconds: 7
+    idleTimeSeconds: 11
+    appid: 1000
+    #牌桌解散超时时间
+    applyTime: 100
+    #当前服务器Socket地址
+    addr: ws://192.168.1.166:18113/protocol

@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+option java_package = "protocol";
+option java_outer_classname = "MetaDataBase";
+
+message MetaData {
+    string sys = 1;
+    string module = 2;
+    string direct = 3;
+    string gToken = 4;
+    string data = 5;
+}

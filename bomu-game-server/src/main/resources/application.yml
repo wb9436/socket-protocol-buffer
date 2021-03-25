@@ -1,0 +1,18 @@
+spring:
+  jackson:
+    time-zone: GMT+8
+    date-format: yyyy-MM-dd HH:mm:ss
+  profiles:
+    active: @profiles-base@,@profiles-server@
+
+#mybatis:
+#  configuration:
+#    map-underscore-to-camel-case: true
+#  mapper-locations: service/**/*Dao.xml
+#  type-aliases-package: com.bomu.game.**.dto
+
+bomu:
+  secret:
+    cipher: false
+    aes256Key: 12345678901234567890123456789012
+    whiteList: @profiles-whiteList@
