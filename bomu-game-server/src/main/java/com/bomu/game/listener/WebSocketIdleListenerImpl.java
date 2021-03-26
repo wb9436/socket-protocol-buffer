@@ -15,7 +15,7 @@ public class WebSocketIdleListenerImpl implements WebSocketIdleListener {
 
     @Override
     public void idle(WebSocket webSocket) {
-        logger.debug("webSocket连接空闲: " + webSocket.toString());
-        webSocket.close();
+        logger.info("webSocket连接空闲: " + webSocket.toString());
+//        webSocket.close();
     }
 }
