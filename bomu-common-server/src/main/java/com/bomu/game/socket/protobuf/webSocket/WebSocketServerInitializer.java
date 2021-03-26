@@ -18,20 +18,33 @@ package com.bomu.game.socket.protobuf.webSocket;
 import com.bomu.game.socket.config.WSConfig;
 import com.bomu.game.socket.protobuf.listener.WebSocketCloseListener;
 import com.bomu.game.socket.protobuf.listener.WebSocketIdleListener;
+import com.google.protobuf.MessageLite;
+import com.google.protobuf.MessageLiteOrBuilder;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.codec.LengthFieldPrepender;
+import io.netty.handler.codec.MessageToMessageDecoder;
+import io.netty.handler.codec.MessageToMessageEncoder;
+import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
+import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.WebSocketFrame;
+import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
+import io.netty.handler.codec.http.websocketx.extensions.compression.WebSocketServerCompressionHandler;
 import io.netty.handler.codec.protobuf.ProtobufDecoder;
-import io.netty.handler.codec.protobuf.ProtobufEncoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
+import io.netty.handler.stream.ChunkedWriteHandler;
 import io.netty.handler.timeout.IdleStateHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import protocol.MetaDataBase;
 
-/**
- */
+import java.util.List;
+
 @Component
 public class WebSocketServerInitializer extends ChannelInitializer<SocketChannel> {
 
@@ -46,27 +59,62 @@ public class WebSocketServerInitializer extends ChannelInitializer<SocketChannel
 
     @Override
     public void initChannel(SocketChannel ch) throws Exception {
-//      //netty的ByteBuf转成PB消息的解码器实例（第一个参数是要解码的消息原型，第二个参数是扩展消息的ExtensionRegistry实例）
-        ProtobufDecoder protobufDecoder = new ProtobufDecoder(
-                MetaDataBase.MetaData.getDefaultInstance()
-        );
-        // 解码（将字节流转化成程序中使用的数据类型）
-        ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(2 * 1024 * 1024, 0, 4, 0, 4));
-        ch.pipeline().addLast("protobufDecoder", protobufDecoder);
+        ChannelPipeline p = ch.pipeline();
+        p.addLast(new IdleStateHandler(WSConfig.getReadIdleTimeSeconds(), WSConfig.getWriteIdleTimeSeconds(), WSConfig.getIdleTimeSeconds()));
 
-        // 编码（将程序中的数据类型转换成字节流）
-        ch.pipeline().addLast("frameEncoder", new LengthFieldPrepender(4));
-        //ProtobufEncoder将pb消息替代netty自己的ByteBuf
-        ch.pipeline().addLast("protobufEncoder", new ProtobufEncoder());
+        // HTTP请求的解码和编码
+        p.addLast(new HttpServerCodec());
+        // 支持参数对象解析， 比如POST参数， 设置聚合内容的最大长度
+        // 把多个消息转换为一个单一的FullHttpRequest或是FullHttpResponse，
+        // 原因是HTTP解码器会在每个HTTP消息中生成多个消息对象HttpRequest/HttpResponse,HttpContent,LastHttpContent
+        p.addLast(new HttpObjectAggregator(65536));
+        // 支持大数据流写入，主要用于处理大数据流，比如一个1G大小的文件如果你直接传输肯定会撑暴jvm内存的;
+        p.addLast(new ChunkedWriteHandler());
+        // WebSocket数据压缩
+        p.addLast(new WebSocketServerCompressionHandler());
+        // Websocket协议配置， 设置访问路径
+        p.addLast(new WebSocketServerProtocolHandler(WSConfig.getWebsocketPath(), null, true));
 
-        ch.pipeline().addLast(new IdleStateHandler(WSConfig.getReadIdleTimeSeconds(), WSConfig.getWriteIdleTimeSeconds(), WSConfig.getIdleTimeSeconds()));
-        ch.pipeline().addLast(new HttpServerCodec());
+        //解码器，通过Google Protocol Buffers序列化框架动态的切割接收到的ByteBuf
+        p.addLast(new ProtobufVarint32FrameDecoder());
+        //Google Protocol Buffers 长度属性编码器
+        p.addLast(new ProtobufVarint32LengthFieldPrepender());
 
-        // 逻辑处理
+        // 协议包解码
+        p.addLast(new MessageToMessageDecoder<WebSocketFrame>() {
+            @Override
+            protected void decode(ChannelHandlerContext ctx, WebSocketFrame frame, List<Object> objs) throws Exception {
+                ByteBuf buf = ((BinaryWebSocketFrame) frame).content();
+                objs.add(buf);
+                buf.retain();
+            }
+        });
+        // 协议包编码
+        p.addLast(new MessageToMessageEncoder<MessageLiteOrBuilder>() {
+            @Override
+            protected void encode(ChannelHandlerContext ctx, MessageLiteOrBuilder msg, List<Object> out) throws Exception {
+                ByteBuf result = null;
+                if (msg instanceof MessageLite) {
+                    // 没有build的Protobuf消息
+                    result = Unpooled.wrappedBuffer(((MessageLite) msg).toByteArray());
+                }
+                if (msg instanceof MessageLite.Builder) {
+                    // 经过build的Protobuf消息
+                    result = Unpooled.wrappedBuffer(((MessageLite.Builder) msg).build().toByteArray());
+                }
+                // 将Protbuf消息包装成BinaryFrame消息
+                WebSocketFrame frame = new BinaryWebSocketFrame(result);
+                out.add(frame);
+            }
+        });
+        // Protobuf消息解码器
+        p.addLast(new ProtobufDecoder(MetaDataBase.MetaData.getDefaultInstance()));
+
+        // 自定义数据处理器
         WebSocketServerHandler bizHandler = new WebSocketServerHandler();
         bizHandler.setCloseListener(webSocketCloseListener);
         bizHandler.setIdleListener(webSocketIdleListener);
-        ch.pipeline().addLast(bizHandler);
+        p.addLast(bizHandler);
     }
 
 }
