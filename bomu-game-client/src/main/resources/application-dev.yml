@@ -1,0 +1,8 @@
+#自定义配置
+bomu:
+  tempPath: D:/apache-tomcat-7.0.70/webapps/upload/bomu-game
+
+server:
+  port: 18110
+  tomcat: # 存放Tomcat的日志、Dump等文件的临时文件夹，默认为系统的tmp文件夹
+    basedir: ${bomu.tempPath}

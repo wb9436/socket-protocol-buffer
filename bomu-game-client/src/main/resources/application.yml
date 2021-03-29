@@ -1,0 +1,12 @@
+spring:
+  thymeleaf:
+    mode: LEGACYHTML5
+    cache: false
+  mvc:
+    date-format: yyyy-MM-dd HH:mm:ss
+  jackson:
+    time-zone: GMT+8
+    date-format: yyyy-MM-dd HH:mm:ss
+  profiles:
+    active: @profiles-base@,@profiles-server@
+

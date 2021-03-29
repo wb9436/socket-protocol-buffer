@@ -12,6 +12,7 @@
         <module>bomu-common</module>
         <module>bomu-common-server</module>
         <module>bomu-game-server</module>
+        <module>bomu-game-client</module>
     </modules>
 
     <parent>
@@ -196,7 +197,6 @@
                     <execution>
                         <goals>
                             <goal>compile</goal>
-                            <goal>compile-js</goal>
                         </goals>
                     </execution>
                 </executions>
