@@ -10,27 +10,8 @@
     <![endif]-->
 </head>
 <body>
-<script src="https://cdn.bootcdn.net/ajax/libs/require.js/2.3.6/require.js"></script>
-<script>
-    var jspb = require("protobuf.js")
-    var goog = jspb;
-
-
-    require.register("./protobuf.js", function (module, exports, require) {
-        module.exports = function (x) {
-            console.log("111111111111111111111:  " + x);
-        };
-    });
-    var foo = require("./protobuf.js");
-
-    // var jspb = require('google-protobuf');
-    // var goog = jspb;
-    // var proto = goog;
-</script>
-<script src="/js/MetaDataBase_pb.js"></script>
+<script src="/js/MetaDataBase_pb_web.js"></script>
 <script type="text/javascript">
-
-
     var wsUri = 'ws://192.168.1.166:18113/protocol';
 
     var socket;
@@ -71,31 +52,29 @@
     }
 
     function onMessage(evt) {
-        console.log("接收返回消息", evt)
+        console.log("接收返回消息", evt.data)
         responseUserDecoder(evt.data)
     }
 
     function doSend() {
-        var data = {code: 200, msg: '成功', otherData: '你好啊'};
-
-        var reqData = {
-            sys: '1000',
-            module: '1000',
-            direct: '1000',
-            gToken: '1000',
-            data: JSON.stringify(data),
-        }
-        requestUserEncoder(reqData);
+        requestUserEncoder();
     }
 
     /**
      * 发送的消息编码成 protobuf
      */
-    function requestUserEncoder(data) {
-        var message = new proto.protocol.MetaData(data);
+    function requestUserEncoder() {
+        var data = {code: 200, msg: '成功', otherData: '你好啊'};
+
+        var message = new proto.protocol.MetaData();
+        message.setSys("1000")
+        message.setModule("1000")
+        message.setDirect("1000")
+        message.setGtoken("1000")
+        message.setData(JSON.stringify(data))
 
         var buffer = message.serializeBinary();
-        console.log(buffer)
+        console.log('发送消息', buffer)
         socket.send(buffer)
     }
 
@@ -103,18 +82,13 @@
      * 接收到服务器二进制流的消息进行解码
      */
     function responseUserDecoder(data) {
-        protobuf.load(URL, function (err, root) {
-            if (err) {
-                throw err
-            }
-            var reader = new FileReader();
-            reader.readAsArrayBuffer(data);
-            reader.onload = function (e) {
-                var buffer = new Uint8Array(reader.result);
-                var message = proto.protocol.MetaData.deserializeBinary(buffer);
-                console.log('接收到服务器返回的数据: ' + message.data)
-            }
-        });
+        var reader = new FileReader();
+        reader.readAsArrayBuffer(data);
+        reader.onload = function (e) {
+            var buf = new Uint8Array(reader.result);
+            var message = proto.protocol.MetaData.deserializeBinary(buf);
+            console.log(buf, '接收到服务器返回的数据: ' + message.getData())
+        }
     }
 </script>
 </body>
